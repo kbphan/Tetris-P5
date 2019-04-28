@@ -1,0 +1,24 @@
+{
+  "name": "tetris-p5",
+  "version": "1.0.0",
+  "description": "Implementation of Tetris using P5",
+  "main": "p5.js",
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "eslint-config-google": "^0.12.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kbphan/Tetris-P5.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kbphan/Tetris-P5/issues"
+  },
+  "homepage": "https://github.com/kbphan/Tetris-P5#readme"
+}

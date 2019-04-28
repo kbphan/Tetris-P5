@@ -6,6 +6,7 @@ let stepLength = 10;
 let isDroping = false;
 let blockRow = 0;
 let blockCol = 3;
+let ghostRow = 0;
 let shape;
 
 // block shapes
@@ -44,13 +45,18 @@ let colors = ['white', 'cyan', 'yellow', 'purple',
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
+  background('white');
   frameRate(60);
+  strokeWeight(3);
   spawn();
 }
 
 function draw() {
+  clear();
+
   // well outline
   fill('black');
+  noStroke();
   rect(xOffset, yOffset + 4 * block, 1 * block, 21 * block);
   rect(xOffset, yOffset + 24 * block, 12 * block, 1 * block);
   rect(xOffset + 11 * block, yOffset + 4 * block, 1 * block, 21 * block);
@@ -59,17 +65,39 @@ function draw() {
   for (let i = 0; i < playfield.length; i++) {
     for (let j = 0; j < playfield[i].length; j++) {
       const element = playfield[i][j];
-      fill(colors[element]);
-      rect(xOffset + (1 + i) * block,
+      if (element > 0) {
+        stroke('black');
+        fill(colors[element]);
+        rect(xOffset + (1 + i) * block,
            yOffset + (1 + j) * block,
            block,
            block);
+      }
+      
     }
   }
 
   // block that is dropping
   if (isDroping) {
-    fill('yellow');
+    // ghost block for player aid
+    ghostRow = 0;
+    while(isLegalMove(0, ghostRow)) {
+      ghostRow++;
+    }
+    for (let i = 0; i < shape.length; i++) {
+      for (let j = 0; j < shape[i].length; j++) {
+        const element = shape[i][j];
+        if (element > 0) {
+          stroke(colors[element]);
+          fill(0, 0, 0, 0);
+          rect(xOffset + (1 + blockCol + j) * block,
+                yOffset + (ghostRow + blockRow + i) * block,
+                block,
+                block);
+        }
+      }
+    }
+    stroke('black'); 
     for (let i = 0; i < shape.length; i++) {
       for (let j = 0; j < shape[i].length; j++) {
         const element = shape[i][j];
@@ -149,6 +177,7 @@ function land() {
   }
   console.log(arrayLog);
   checkRows();
+  checkLose();
 }
 
 function checkRows() {
@@ -169,12 +198,22 @@ function checkRows() {
   }
 }
 
+function checkLose() {
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < playfield.length; j++) {
+      const element = playfield[j][i];
+      if (element > 0) {
+        playfield = [...Array(10)].map(_ => [...Array(23).fill(0)]);
+      }
+    }
+  }
+}
+
 function clearRow(x) {
   for (let i = 0; i < playfield.length; i++) {
     playfield[i].splice(x, 1);
     playfield[i].unshift([0]);
   }
-  //playfield.push([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 }
 
 function spawn() {
