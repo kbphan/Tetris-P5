@@ -1,14 +1,21 @@
 // game logic
 let score = 0;
+let level = 1;
+let linesCleared = 0;
+let isGameOver = false;
 let playfield = [...Array(10)].map(_ => [...Array(23).fill(0)]);
 let counter = 0;
-let stepLength = 10;
+let stepLength = 30;
 let landTimer = 2;
 let isDroping = false;
 let blockRow = 0;
 let blockCol = 3;
 let ghostRow = 0;
 let shape;
+let holdShape = 'empty';
+let canHold = true;
+let scoreValues = [0, 100, 300, 500, 800];
+let bag = [];
 
 // block shapes
 const iBlock = [[0, 0, 0, 0],
@@ -41,11 +48,11 @@ let block = 35;
 let xOffset = 20;
 let yOffset  = 20;
 let colors = ['white', 'cyan', 'yellow', 'purple',
-              'green', 'red', 'blue', 'orange'];
+              'green', 'red', 'blue', 'orange', 'grey'];
 
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  createCanvas(windowWidth - 10, windowHeight - 10);
   background('white');
   frameRate(60);
   strokeWeight(3);
@@ -55,9 +62,19 @@ function setup() {
 function draw() {
   clear();
 
+  // UI
+  noStroke();
+  fill('black');
+  textSize(48);
+  text("Score: " + score, 850, 200);
+  text("Level: " + level, 850, 300);
+  text("Lines: " + linesCleared, 850, 400);
+  textSize(24);
+  text("Next", 475, 150);
+  text("Hold", 475, 350);
+
   // well outline
   fill('black');
-  noStroke();
   rect(xOffset, yOffset + 4 * block, 1 * block, 21 * block);
   rect(xOffset, yOffset + 24 * block, 12 * block, 1 * block);
   rect(xOffset + 11 * block, yOffset + 4 * block, 1 * block, 21 * block);
@@ -74,7 +91,6 @@ function draw() {
            block,
            block);
       }
-      
     }
   }
 
@@ -112,14 +128,64 @@ function draw() {
       }
     }
   }
+
+  // holding block
+  for (let i = 0; i < holdShape.length; i++) {
+    for (let j = 0; j < holdShape[i].length; j++) {
+      const element = holdShape[i][j];
+      if (element > 0) {
+        fill(colors[element]);
+        rect(xOffset + (13 + j) * block,
+              yOffset + (10 + i) * block,
+              block,
+              block);
+      }
+    }
+  }
+
+  // next block
+  if (isDroping) {
+    let nextBlock = bag[bag.length -1];
+    for (let i = 0; i < nextBlock.length; i++) {
+      for (let j = 0; j < nextBlock[i].length; j++) {
+        const element = nextBlock[i][j];
+        if (element > 0) {
+          fill(colors[element]);
+          rect(xOffset + (13 + j) * block,
+                yOffset + (5 + i) * block,
+                block,
+                block);
+        }
+      }
+    }
+  }
   step();
 }
 
 function step() {
   counter++;
-  if (counter > stepLength) {
-    counter = 0;
-    advance();
+  
+  if (isGameOver) {
+    if (counter > 180) {
+      playfield = [...Array(10)].map(_ => [...Array(23).fill(0)]);
+      counter = 0;
+      isGameOver = false;
+      score = 0;
+      level = 1;
+      linesCleared = 0;
+      holdShape = 'empty';
+    }
+  }
+
+  else {
+    let currentStepLength = stepLength;
+    if (keyIsDown(DOWN_ARROW)) {
+      currentStepLength /= 3;
+    }
+    if (counter > currentStepLength) {
+      counter = 0;
+      advance();
+    }
   }
 }
 
@@ -128,8 +194,13 @@ function advance() {
     spawn();
     isDroping = true;
   }
+
   if (isLegalMove(0, 1)) {
     blockRow++;
+    // score for soft drop
+    if (keyIsDown(DOWN_ARROW)) {
+      score++;
+    }
   }
   else if (landTimer == 0) {
     land();
@@ -183,9 +254,11 @@ function land() {
   console.log(arrayLog);
   checkRows();
   checkLose();
+  canHold = true;
 }
 
 function checkRows() {
+  let rowsToClear = [];
   for (let i = 0; i < playfield[0].length; i++) {
     let isComplete = true;
     let rowLog = "row: ";
@@ -197,10 +270,10 @@ function checkRows() {
       rowLog += element + " ";
     }
     if (isComplete) {
-      clearRow(i);
+      rowsToClear.push(i);
     }
-    console.log(rowLog);
   }
+  clearRow(rowsToClear);
 }
 
 function checkLose() {
@@ -208,22 +281,55 @@ function checkLose() {
     for (let j = 0; j < playfield.length; j++) {
       const element = playfield[j][i];
       if (element > 0) {
-        playfield = [...Array(10)].map(_ => [...Array(23).fill(0)]);
+        gameOver();
       }
     }
   }
 }
 
-function clearRow(x) {
+function gameOver() {
   for (let i = 0; i < playfield.length; i++) {
-    playfield[i].splice(x, 1);
-    playfield[i].unshift([0]);
+    for (let j = 0; j < playfield[i].length; j++) {
+      const element = playfield[i][j];
+      if (element > 0) {
+        playfield[i][j] = 8 ;
+      }
+    }
+  }
+  isGameOver = true;
+  counter = 0;
+}
+
+function clearRow(rowsToClear) {
+  linesCleared += rowsToClear.length;
+  score += scoreValues[rowsToClear.length] * level;
+  if (linesCleared / 8 > level) {
+    level++;
+    if (stepLength > 2) {
+      stepLength--;
+    }
+  }
+  for (let i = 0; i < rowsToClear.length; i++) {
+    const row = rowsToClear[i];
+    for (let j = 0; j < playfield.length; j++) {
+      playfield[j].splice(row, 1);
+      playfield[j].unshift([0]);
+    }
   }
 }
 
 function spawn() {
   let rng = random([0, 1, 2, 3, 4, 5, 6]);
-  shape = blockShapes[rng];
+  if (bag.length <= 1) {
+    let tempBag = blockShapes;
+    for (let i = tempBag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tempBag[i], tempBag[j]] = [tempBag[j], tempBag[i]];
+    }
+    bag = tempBag.concat(bag);
+  }
+  console.log("length of bag: " + bag.length);
+  shape = bag.pop();
   blockRow = 0;
   blockCol = 3;
 }
@@ -235,14 +341,14 @@ function keyPressed() {
   if (keyCode === RIGHT_ARROW) {
     moveRight();
   }
-  if (keyCode == DOWN_ARROW) {
-    softDrop();
-  }
   if (keyCode == UP_ARROW) {
     rotateBlock();
   }
-  if (keyCode == SHIFT) {
+  if (keyCode == 32) {
     hardDrop();
+  }
+  if (keyCode == SHIFT) {
+    hold();
   }
 }
 
@@ -258,16 +364,27 @@ function moveRight() {
   }
 }
 
-function softDrop() {
-  advance();
-}
-
 function hardDrop() {
+  let hardDropScore = 0;
   while(isLegalMove(0, 1)) {
+    hardDropScore++
     blockRow++
   }
+  score += 2 * hardDropScore;
   land();
   isDroping = false;
+}
+
+function hold() {
+  if (canHold) {
+    let tempShape = holdShape;
+    if (!(holdShape == 'empty')) {
+      bag.push(tempShape);
+    }
+    holdShape = shape;
+    spawn();
+    canHold = false;
+  }
 }
 
 function rotateBlock() {
