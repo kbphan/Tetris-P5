@@ -2,11 +2,14 @@
 let score = 0;
 let playfield = [...Array(10)].map(_ => [...Array(23).fill(0)]);
 let counter = 0;
-let stepLength = 15;
+let stepLength = 10;
 let isDroping = false;
 let blockRow = 0;
 let blockCol = 5;
 let shape = [];
+const lBlock = [[1, 1, 1, 1]];
+const oBlock = [[2, 2],
+                [2, 2]];
 
 
 // appearance 
@@ -20,7 +23,6 @@ let colors = ['white', 'cyan', 'yellow', 'purple',
 function setup() {
   createCanvas(windowWidth, windowHeight);
   frameRate(60);
-  console.log(playfield.toString());
 }
 
 function draw() {
@@ -50,9 +52,9 @@ function draw() {
         const element = shape[i][j];
         fill(colors[element]);
         rect(xOffset + (1 + blockCol + i) * block,
-              yOffset + (1 + blockRow + j) * block,
-              block,
-              block);
+             yOffset + (1 + blockRow + j) * block,
+             block,
+             block);
       }
     }
   }
@@ -72,22 +74,59 @@ function advance() {
     spawn();
     isDroping = true;
   }
-  if (blockRow + 1 > 22 || playfield[blockCol][blockRow + 1] > 0) {
-    playfield[blockCol][blockRow] = 3;
-    console.log(playfield.toString());
-    console.log("next block value: " + playfield[blockCol][blockRow]);
-    isDroping = false;
-  }
-  else {
+  if (isLegalMove(0, 1)) {
     blockRow++;
   }
+  else {
+    land();
+    isDroping = false;
+    
+  }
+}
+
+function isLegalMove(x, y) {
+  for (let i = 0; i < shape.length; i++) {
+    for (let j = 0; j < shape[i].length; j++) {
+      const element = shape[i][j];
+      const isOutOfWell = (blockCol + i + x) > 10 || (blockCol + i + x) < 0;
+      if (isOutOfWell) {
+        return false;
+      }
+      const playfieldBlock = playfield[blockCol + i + x][blockRow + j + y];
+      const isBottom = (blockRow + j + y) > 22;
+      if ((element > 0 && playfieldBlock > 0) || isBottom) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function land() {
+  for (let i = 0; i < shape.length; i++) {
+    for (let j = 0; j < shape[i].length; j++) {
+      const element = shape[i][j];
+      // check to make sure landing does not clear with whitespace
+      if (element > 0) {
+        playfield[blockCol + i][blockRow + j] = element;
+      }
+    }
+  }
+  let arrayLog = "";
+  for (let i = 0; i < playfield.length; i++) {
+    for (let j = 0; j < playfield[i].length; j++) {
+      const element = playfield[i][j];
+      arrayLog += element + " ";
+    }
+    arrayLog += "\n";
+  }
+  console.log(arrayLog);
 }
 
 function spawn() {
   blockRow = 0;
   blockCol = 5;
-  shape = [[2, 2],
-           [2, 2]];
+  shape = lBlock;
 }
 
 function keyPressed() {
@@ -103,13 +142,13 @@ function keyPressed() {
 }
 
 function moveLeft() {
-  if (blockCol > 0) {
+  if (isLegalMove(-1, 0)) {
     blockCol--;
   }
 }
 
 function moveRight() {
-  if (blockCol < 9) {
+  if (isLegalMove(1, 0)) {
     blockCol++;
   }
 }
