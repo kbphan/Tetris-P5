@@ -3,6 +3,7 @@ let score = 0;
 let playfield = [...Array(10)].map(_ => [...Array(23).fill(0)]);
 let counter = 0;
 let stepLength = 10;
+let landTimer = 2;
 let isDroping = false;
 let blockRow = 0;
 let blockCol = 3;
@@ -130,9 +131,13 @@ function advance() {
   if (isLegalMove(0, 1)) {
     blockRow++;
   }
-  else {
+  else if (landTimer == 0) {
     land();
     isDroping = false;
+    landTimer = 2;
+  }
+  else {
+    landTimer--;
   }
 }
 
