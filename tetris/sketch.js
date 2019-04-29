@@ -1,3 +1,11 @@
+// Declare a "SerialPort" object
+var serial;
+var latestData = 'waiting for data'; // you'll use this to write incoming data to the canvas
+const portName = 'COM3'; // fill in your serial port name here
+
+let potVal;
+
+
 // game logic
 let score = 0;
 let level = 1;
@@ -50,6 +58,15 @@ let yOffset  = 20;
 let colors = ['white', 'cyan', 'yellow', 'purple',
               'green', 'red', 'blue', 'orange', 'grey'];
 
+// sound
+let player;
+let soundEffects;
+let musicStart = false;
+
+function preload() {
+  player = new Tone.Player("./song.mp3").toMaster();
+  player.loop = true;
+}
 
 function setup() {
   createCanvas(windowWidth - 10, windowHeight - 10);
@@ -57,11 +74,71 @@ function setup() {
   frameRate(60);
   strokeWeight(3);
   spawn();
+  soundEffects = new Tone.Players({
+    clear: "./effect1.mp3",
+  }).toMaster();
+  
+  serial = new p5.SerialPort(); // make a new instance of the serialport library
+  serial.on('list', printList); // set a callback function for the serialport list event
+  serial.on('connected', serverConnected); // callback for connecting to the server
+  serial.on('open', portOpen); // callback for the port opening
+  serial.on('data', serialEvent); // callback for when new data arrives
+  serial.on('error', serialError); // callback for errors
+  serial.on('close', portClose); // callback for the port closing
+
+  serial.list(); // list the serial ports
+  serial.open(portName); // open a serial port
+
+  serial.write('x'); // send a byte requesting more serial data
+}
+
+// get the list of ports:
+function printList(portList) {
+  // portList is an array of serial port names
+  for (var i = 0; i < portList.length; i++) {
+    // Display the list the console:
+    console.log(i + " " + portList[i]);
+  }
+}
+
+function serverConnected() {
+  console.log('connected to server.');
+}
+
+function portOpen() {
+  console.log('the serial port opened.')
+}
+
+function serialEvent() {
+  // read a string from the serial port
+  // until you get carriage return and newline:
+  var inString = serial.readStringUntil('\r\n');
+  //check to see that there's actually a string there:
+  if (inString.length > 0) {
+      var sensors = split(inString, ','); // split the string on the commas
+      if (sensors.length > 1) { // if there are two elements
+        potVal = sensors[0];
+        if (sensors[1] == 1) {
+          rotateBlock();
+        }
+        console.log(sensors);
+      }
+    serial.write('x'); // send a byte requesting more serial data
+  }
+}
+
+function serialError(err) {
+  console.log('Something went wrong with the serial port. ' + err);
+}
+
+function portClose() {
+  console.log('The serial port closed.');
 }
 
 function draw() {
   clear();
 
+  
   // UI
   noStroke();
   fill('black');
@@ -72,6 +149,7 @@ function draw() {
   textSize(24);
   text("Next", 475, 150);
   text("Hold", 475, 350);
+  text("Pot Value: " + potVal, 10, 40);
 
   // well outline
   fill('black');
@@ -190,6 +268,12 @@ function step() {
 }
 
 function advance() {
+  if (potVal < 500) {
+    moveRight();
+  }
+  if (potVal > 650) {
+    moveLeft();
+  }
   if (!isDroping) {
     spawn();
     isDroping = true;
@@ -303,11 +387,19 @@ function gameOver() {
 function clearRow(rowsToClear) {
   linesCleared += rowsToClear.length;
   score += scoreValues[rowsToClear.length] * level;
-  if (linesCleared / 8 > level) {
+  if (rowsToClear.length > 0) {
+    serial.write(1);
+    serial.write(2);
+  }
+  if (rowsToClear.length == 4) {
+    soundEffects.get("clear").start();
+  }
+  if (linesCleared / 6 > level) {
     level++;
     if (stepLength > 2) {
       stepLength--;
     }
+    serial.write(3);
   }
   for (let i = 0; i < rowsToClear.length; i++) {
     const row = rowsToClear[i];
@@ -335,6 +427,10 @@ function spawn() {
 }
 
 function keyPressed() {
+  if (!musicStart) {
+    player.start();
+    musicStart = true;
+  }
   if (keyCode === LEFT_ARROW) {
     moveLeft();
   }
